@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EKS Pod Best Practices — Solution Architect Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4fb; color: #1a1a2e; line-height: 1.6; }
+
+  /* ── COVER ── */
+  .cover { background: linear-gradient(135deg, #1F3A6B 0%, #0F6E56 100%); color: #fff; padding: 60px 40px; text-align: center; }
+  .cover h1 { font-size: 38px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px; }
+  .cover .sub { font-size: 17px; opacity: 0.85; margin-bottom: 28px; }
+  .cover-tags { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+  .cover-tag { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 5px 16px; font-size: 13px; }
+
+  /* ── TOC ── */
+  .toc { background: #fff; margin: 32px auto; max-width: 1100px; border-radius: 12px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .toc h2 { color: #1F3A6B; font-size: 18px; margin-bottom: 16px; border-left: 4px solid #1F3A6B; padding-left: 10px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+  .toc-item { background: #f0f4fb; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #1F3A6B; cursor: pointer; border-left: 3px solid #1F3A6B; }
+  .toc-item:hover { background: #dce6f7; }
+
+  /* ── PAGE ── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ── SECTION ── */
+  .section { background: #fff; border-radius: 14px; padding: 32px 36px; margin-bottom: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e8eef8; }
+  .section-num { background: #1F3A6B; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; flex-shrink: 0; }
+  .section-title { font-size: 22px; font-weight: 700; color: #1F3A6B; }
+  .section-sub { font-size: 13px; color: #666; margin-top: 2px; }
+
+  h3 { font-size: 15px; font-weight: 700; color: #1F3A6B; margin: 22px 0 10px; }
+
+  /* ── DIAGRAM BOX ── */
+  .diagram { background: #f7f9ff; border: 1px solid #dce6f7; border-radius: 10px; padding: 20px; margin: 16px 0; overflow-x: auto; }
+  .diagram svg { display: block; }
+
+  /* ── 2-COL ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
+  @media(max-width:700px){ .two-col { grid-template-columns: 1fr; } }
+
+  /* ── BAD/GOOD CARDS ── */
+  .bad  { background: #fff5f5; border-left: 4px solid #E24B4A; border-radius: 0 8px 8px 0; padding: 14px 16px; }
+  .good { background: #f0faf5; border-left: 4px solid #1D9E75; border-radius: 0 8px 8px 0; padding: 14px 16px; }
+  .bad-label  { font-size: 11px; font-weight: 800; color: #A32D2D; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .good-label { font-size: 11px; font-weight: 800; color: #0F6E56; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  /* ── CODE ── */
+  pre { background: #1a1a2e; color: #c8d8f8; border-radius: 8px; padding: 16px 18px; font-size: 12px; overflow-x: auto; margin: 10px 0; line-height: 1.7; }
+  code { font-family: 'Consolas','Courier New',monospace; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 14px 0; }
+  th { background: #1F3A6B; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
+  td { padding: 9px 14px; border-bottom: 1px solid #e8eef8; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f7f9ff; }
+  .yes { color: #0F6E56; font-weight: 700; }
+  .no  { color: #A32D2D; font-weight: 700; }
+  .warn { color: #854F0B; font-weight: 700; }
+
+  /* ── CALLOUT ── */
+  .callout { display: flex; gap: 12px; background: #fff8ec; border: 1px solid #FAC775; border-radius: 8px; padding: 14px 16px; margin: 14px 0; font-size: 13px; }
+  .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.4; }
+  .callout.info { background: #e6f1fb; border-color: #85B7EB; }
+  .callout.danger { background: #fff0f0; border-color: #F09595; }
+  .callout.success { background: #e8f5f0; border-color: #5DCAA5; }
+
+  /* ── FLOW STEPS ── */
+  .flow { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; margin: 16px 0; }
+  .flow-step { background: #1F3A6B; color: #fff; border-radius: 8px; padding: 12px 16px; font-size: 12px; font-weight: 600; min-width: 120px; text-align: center; flex: 1; }
+  .flow-step.green  { background: #0F6E56; }
+  .flow-step.amber  { background: #854F0B; }
+  .flow-step.red    { background: #A32D2D; }
+  .flow-step.purple { background: #534AB7; }
+  .flow-step.gray   { background: #5F5E5A; }
+  .flow-arrow { display: flex; align-items: center; padding: 0 6px; color: #888; font-size: 18px; font-weight: 700; }
+
+  /* ── PRIORITY BADGES ── */
+  .p1 { background: #ffecec; color: #A32D2D; border: 1px solid #F09595; border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 800; }
+  .p2 { background: #fff8ec; color: #854F0B; border: 1px solid #FAC775; border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 800; }
+  .p3 { background: #eaf3de; color: #3B6D11; border: 1px solid #97C459; border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 800; }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+  .checklist li { font-size: 13px; padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+  .checklist li::before { content: ""; width: 16px; height: 16px; border: 2px solid #1F3A6B; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── LAYER STACK ── */
+  .layer-stack { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+  .layer-item { display: flex; align-items: center; gap: 12px; background: #f0f4fb; border-radius: 8px; padding: 10px 16px; border-left: 4px solid #1F3A6B; }
+  .layer-num { background: #1F3A6B; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+  .layer-text { font-size: 13px; font-weight: 600; color: #1F3A6B; }
+  .layer-desc { font-size: 12px; color: #555; margin-left: auto; }
+
+  /* ── METRIC CARDS ── */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 12px; margin: 14px 0; }
+  .metric-card { background: #f0f4fb; border-radius: 10px; padding: 16px; text-align: center; border-top: 3px solid #1F3A6B; }
+  .metric-card .val { font-size: 26px; font-weight: 800; color: #1F3A6B; }
+  .metric-card .lbl { font-size: 11px; color: #666; margin-top: 4px; }
+
+  footer { background: #1F3A6B; color: rgba(255,255,255,0.7); text-align: center; padding: 24px; font-size: 12px; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<!-- ══ COVER ══════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <h1>EKS Pod Best Practices</h1>
+  <p class="sub">Solution Architect Recommendations for Spring Boot Microservices on AWS EKS</p>
+  <div class="cover-tags">
+    <span class="cover-tag">AWS EKS</span>
+    <span class="cover-tag">Spring Boot</span>
+    <span class="cover-tag">Kubernetes</span>
+    <span class="cover-tag">Production Grade</span>
+    <span class="cover-tag">Security</span>
+    <span class="cover-tag">High Availability</span>
+    <span class="cover-tag">Observability</span>
+    <span class="cover-tag">March 2026 · v1.0</span>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ══ TOC ══════════════════════════════════════════════════════════════ -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <div class="toc-grid">
+    <div class="toc-item">01 · Resource Management</div>
+    <div class="toc-item">02 · Health Checks</div>
+    <div class="toc-item">03 · Pod Disruption Budget</div>
+    <div class="toc-item">04 · Autoscaling (HPA)</div>
+    <div class="toc-item">05 · Security Context</div>
+    <div class="toc-item">06 · Secret Management</div>
+    <div class="toc-item">07 · Network Policy</div>
+    <div class="toc-item">08 · Pod Anti-Affinity</div>
+    <div class="toc-item">09 · Graceful Shutdown</div>
+    <div class="toc-item">10 · Image Best Practices</div>
+    <div class="toc-item">11 · Namespace Isolation</div>
+    <div class="toc-item">12 · Observability</div>
+    <div class="toc-item">13 · Deployment Strategy</div>
+    <div class="toc-item">14 · Full Pod Template</div>
+    <div class="toc-item">15 · Checklist & Priority</div>
+  </div>
+</div>
+
+<!-- ══ 1. RESOURCE MANAGEMENT ══════════════════════════════════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div>
+      <div class="section-title">Resource Management</div>
+      <div class="section-sub">CPU & Memory requests and limits — the foundation of a stable cluster</div>
+    </div>
+    <span class="p1">P1 Critical</span>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">⚠️</span>
+    <div>Missing resource limits is the #1 cause of node crashes and OOMKill in production EKS clusters. Every container must have both requests and limits defined.</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>What are Requests?</h3>
+      <p style="font-size:13px;color:#444;margin-bottom:10px">The <strong>minimum guaranteed</strong> resources the pod needs. Kubernetes uses this to decide which node to schedule the pod on.</p>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 320 160" font-family="'Segoe UI',Arial,sans-serif">
+          <rect x="10" y="10" width="300" height="140" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/>
+          <text x="160" y="32" font-size="12" font-weight="700" fill="#0C447C" text-anchor="middle">Node capacity: 4 CPU, 8GB RAM</text>
+          <rect x="20" y="42" width="80" height="98" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="60" y="75" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod A</text>
+          <text x="60" y="91" font-size="9" fill="#9FE1CB" text-anchor="middle">req: 1CPU</text>
+          <text x="60" y="105" font-size="9" fill="#9FE1CB" text-anchor="middle">256MB</text>
+          <rect x="110" y="42" width="80" height="98" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="150" y="75" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod B</text>
+          <text x="150" y="91" font-size="9" fill="#9FE1CB" text-anchor="middle">req: 1CPU</text>
+          <text x="150" y="105" font-size="9" fill="#9FE1CB" text-anchor="middle">256MB</text>
+          <rect x="200" y="42" width="80" height="98" rx="6" fill="#85B7EB" stroke="#185FA5" stroke-width="1"/>
+          <text x="240" y="75" font-size="10" font-weight="700" fill="#042C53" text-anchor="middle">Free</text>
+          <text x="240" y="91" font-size="9" fill="#0C447C" text-anchor="middle">2CPU</text>
+          <text x="240" y="105" font-size="9" fill="#0C447C" text-anchor="middle">7.5GB</text>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <h3>What are Limits?</h3>
+      <p style="font-size:13px;color:#444;margin-bottom:10px">The <strong>maximum</strong> resources a pod can consume. If exceeded, CPU is throttled. If memory is exceeded, pod is OOMKilled.</p>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 320 160" font-family="'Segoe UI',Arial,sans-serif">
+          <rect x="10" y="10" width="300" height="140" rx="8" fill="#fff5f5" stroke="#E24B4A" stroke-width="1"/>
+          <text x="160" y="32" font-size="12" font-weight="700" fill="#A32D2D" text-anchor="middle">Without limits — Pod goes runaway</text>
+          <rect x="20" y="42" width="80" height="98" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="60" y="75" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod A</text>
+          <text x="60" y="91" font-size="9" fill="#9FE1CB" text-anchor="middle">Normal</text>
+          <rect x="110" y="42" width="175" height="98" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1.5"/>
+          <text x="197" y="75" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod B — RUNAWAY</text>
+          <text x="197" y="91" font-size="9" fill="#FAECE7" text-anchor="middle">Consumed 3.5CPU, 7GB</text>
+          <text x="197" y="108" font-size="9" fill="#FAECE7" text-anchor="middle">Pod A gets starved!</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <h3>Correct Configuration</h3>
+  <pre><code>resources:
+  requests:
+    memory: "256Mi"   # guaranteed allocation
+    cpu: "250m"       # 250 millicores = 0.25 CPU
+  limits:
+    memory: "512Mi"   # max — OOMKill if exceeded
+    cpu: "500m"       # max — throttled if exceeded</code></pre>
+
+  <div class="metric-grid">
+    <div class="metric-card"><div class="val">2x</div><div class="lbl">limits vs requests<br>starting point</div></div>
+    <div class="metric-card"><div class="val">250m</div><div class="lbl">min CPU for<br>Spring Boot pod</div></div>
+    <div class="metric-card"><div class="val">256Mi</div><div class="lbl">min memory for<br>Spring Boot pod</div></div>
+    <div class="metric-card"><div class="val">OOMKill</div><div class="lbl">happens when memory<br>limit exceeded</div></div>
+  </div>
+</div>
+
+<!-- ══ 2. HEALTH CHECKS ══════════════════════════════════════════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div>
+      <div class="section-title">Health Checks (Probes)</div>
+      <div class="section-sub">Liveness · Readiness · Startup — tell Kubernetes when your pod is healthy</div>
+    </div>
+    <span class="p1">P1 Critical</span>
+  </div>
+
+  <h3>Three Probes — Three Different Jobs</h3>
+  <div class="diagram">
+    <svg width="100%" viewBox="0 0 900 200" font-family="'Segoe UI',Arial,sans-serif">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#555" stroke-width="1.5"/>
+        </marker>
+      </defs>
+      <!-- Timeline -->
+      <line x1="40" y1="100" x2="860" y2="100" stroke="#ccc" stroke-width="2"/>
+      <!-- Phases -->
+      <rect x="40"  y="60" width="180" height="80" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="1"/>
+      <text x="130" y="90"  font-size="12" font-weight="700" fill="#412402" text-anchor="middle">Pod Starting</text>
+      <text x="130" y="108" font-size="10" fill="#633806" text-anchor="middle">startup probe active</text>
+      <text x="130" y="124" font-size="10" fill="#633806" text-anchor="middle">liveness paused</text>
+
+      <rect x="240" y="60" width="180" height="80" rx="8" fill="#C0DD97" stroke="#3B6D11" stroke-width="1"/>
+      <text x="330" y="90"  font-size="12" font-weight="700" fill="#173404" text-anchor="middle">Pod Ready</text>
+      <text x="330" y="108" font-size="10" fill="#27500A" text-anchor="middle">readiness probe passes</text>
+      <text x="330" y="124" font-size="10" fill="#27500A" text-anchor="middle">traffic starts flowing</text>
+
+      <rect x="440" y="60" width="200" height="80" rx="8" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+      <text x="540" y="90"  font-size="12" font-weight="700" fill="#042C53" text-anchor="middle">Running Healthy</text>
+      <text x="540" y="108" font-size="10" fill="#0C447C" text-anchor="middle">liveness probe checks</text>
+      <text x="540" y="124" font-size="10" fill="#0C447C" text-anchor="middle">every 10s</text>
+
+      <rect x="660" y="60" width="200" height="80" rx="8" fill="#F5C4B3" stroke="#993C1D" stroke-width="1"/>
+      <text x="760" y="90"  font-size="12" font-weight="700" fill="#4A1B0C" text-anchor="middle">Liveness Fails</text>
+      <text x="760" y="108" font-size="10" fill="#712B13" text-anchor="middle">K8s restarts pod</text>
+      <text x="760" y="124" font-size="10" fill="#712B13" text-anchor="middle">automatically</text>
+
+      <line x1="220" y1="100" x2="240" y2="100" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+      <line x1="420" y1="100" x2="440" y2="100" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+      <line x1="640" y1="100" x2="660" y2="100" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+
+      <text x="40"  y="168" font-size="10" fill="#633806" font-weight="700">t=0s</text>
+      <text x="220" y="168" font-size="10" fill="#27500A" font-weight="700">t=30s</text>
+      <text x="440" y="168" font-size="10" fill="#0C447C" font-weight="700">t=50s</text>
+      <text x="660" y="168" font-size="10" fill="#712B13" font-weight="700">t=failure</text>
+    </svg>
+  </div>
+
+  <table>
+    <thead><tr><th>Probe</th><th>Question it answers</th><th>Failure action</th><th>Spring Boot endpoint</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Startup</strong></td><td>Has the app finished initialising?</td><td>Keep waiting (don't restart yet)</td><td>/actuator/health</td></tr>
+      <tr><td><strong>Readiness</strong></td><td>Is the app ready to receive traffic?</td><td>Remove from load balancer</td><td>/actuator/health/readiness</td></tr>
+      <tr><td><strong>Liveness</strong></td><td>Is the app still alive?</td><td>Restart the pod</td><td>/actuator/health/liveness</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Configuration</h3>
+  <pre><code>livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 30   # wait 30s before first check
+  periodSeconds: 10          # check every 10s
+  failureThreshold: 3        # restart after 3 consecutive failures
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 5
+  failureThreshold: 3        # remove from LB after 3 failures
+
+startupProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8080
+  failureThreshold: 30       # allow up to 300s (30 × 10s) to start
+  periodSeconds: 10</code></pre>
+
+  <div class="callout danger">
+    <span class="callout-icon">🚨</span>
+    <div><strong>Never skip readiness probe.</strong> Without it, Kubernetes sends traffic to your pod the moment it starts — before Spring Boot has loaded beans, connected to DB, or warmed up caches. Users see 503 errors for the first 20–30 seconds of every deployment.</div>
+  </div>
+</div>
+
+<!-- ══ 3. PDB ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div>
+      <div class="section-title">Pod Disruption Budget (PDB)</div>
+      <div class="section-sub">Guarantee minimum availability during node drains, upgrades, and rolling deploys</div>
+    </div>
+    <span class="p2">P2 Important</span>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3>Without PDB — Risk of Downtime</h3>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 300 220" font-family="'Segoe UI',Arial,sans-serif">
+          <text x="150" y="20" font-size="11" font-weight="700" fill="#A32D2D" text-anchor="middle">Rolling deploy without PDB</text>
+          <rect x="20" y="30" width="70" height="50" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="55" y="51" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod 1</text>
+          <text x="55" y="66" font-size="9" fill="#FAECE7" text-anchor="middle">TERMINATING</text>
+          <rect x="115" y="30" width="70" height="50" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="150" y="51" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod 2</text>
+          <text x="150" y="66" font-size="9" fill="#FAECE7" text-anchor="middle">TERMINATING</text>
+          <rect x="210" y="30" width="70" height="50" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="245" y="51" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod 3</text>
+          <text x="245" y="66" font-size="9" fill="#FAECE7" text-anchor="middle">TERMINATING</text>
+          <rect x="60" y="110" width="180" height="50" rx="8" fill="#fff5f5" stroke="#E24B4A" stroke-width="1.5"/>
+          <text x="150" y="133" font-size="12" font-weight="700" fill="#A32D2D" text-anchor="middle">0 pods running!</text>
+          <text x="150" y="150" font-size="10" fill="#712B13" text-anchor="middle">DOWNTIME for ~30 seconds</text>
+          <text x="150" y="195" font-size="10" fill="#A32D2D" text-anchor="middle" font-weight="700">Users see 503 errors</text>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <h3>With PDB — Zero Downtime</h3>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 300 220" font-family="'Segoe UI',Arial,sans-serif">
+          <text x="150" y="20" font-size="11" font-weight="700" fill="#0F6E56" text-anchor="middle">Rolling deploy with PDB (minAvailable:2)</text>
+          <rect x="20" y="30" width="70" height="50" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="55" y="51" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod 1</text>
+          <text x="55" y="66" font-size="9" fill="#FAECE7" text-anchor="middle">TERMINATING</text>
+          <rect x="115" y="30" width="70" height="50" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="150" y="51" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod 2</text>
+          <text x="150" y="66" font-size="9" fill="#9FE1CB" text-anchor="middle">RUNNING ✓</text>
+          <rect x="210" y="30" width="70" height="50" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="245" y="51" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod 3</text>
+          <text x="245" y="66" font-size="9" fill="#9FE1CB" text-anchor="middle">RUNNING ✓</text>
+          <rect x="60" y="110" width="180" height="50" rx="8" fill="#e8f5f0" stroke="#1D9E75" stroke-width="1.5"/>
+          <text x="150" y="133" font-size="12" font-weight="700" fill="#0F6E56" text-anchor="middle">2 pods always running</text>
+          <text x="150" y="150" font-size="10" fill="#085041" text-anchor="middle">K8s blocks unsafe drain</text>
+          <text x="150" y="195" font-size="10" fill="#0F6E56" text-anchor="middle" font-weight="700">Zero downtime guaranteed</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <pre><code>apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: myapp-pdb
+  namespace: production
+spec:
+  minAvailable: 2        # always keep at least 2 pods running
+  selector:
+    matchLabels:
+      app: my-spring-boot-app</code></pre>
+</div>
+
+<!-- ══ 4. HPA ══════════════════════════════════════════════════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div>
+      <div class="section-title">Horizontal Pod Autoscaler (HPA)</div>
+      <div class="section-sub">Automatically scale pods up and down based on CPU and memory usage</div>
+    </div>
+    <span class="p2">P2 Important</span>
+  </div>
+
+  <h3>How HPA Works</h3>
+  <div class="diagram">
+    <svg width="100%" viewBox="0 0 900 180" font-family="'Segoe UI',Arial,sans-serif">
+      <defs>
+        <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#555" stroke-width="1.5"/>
+        </marker>
+      </defs>
+      <rect x="10"  y="50" width="150" height="80" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="1"/>
+      <text x="85"  y="83"  font-size="11" font-weight="700" fill="#412402" text-anchor="middle">Metrics Server</text>
+      <text x="85"  y="100" font-size="9"  fill="#633806" text-anchor="middle">Collects CPU/memory</text>
+      <text x="85"  y="115" font-size="9"  fill="#633806" text-anchor="middle">from all pods every 15s</text>
+
+      <rect x="210" y="50" width="150" height="80" rx="8" fill="#AFA9EC" stroke="#534AB7" stroke-width="1"/>
+      <text x="285" y="83"  font-size="11" font-weight="700" fill="#26215C" text-anchor="middle">HPA Controller</text>
+      <text x="285" y="100" font-size="9"  fill="#3C3489" text-anchor="middle">Compares vs target</text>
+      <text x="285" y="115" font-size="9"  fill="#3C3489" text-anchor="middle">Calculates desired replicas</text>
+
+      <rect x="410" y="20" width="150" height="60" rx="8" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+      <text x="485" y="45"  font-size="11" font-weight="700" fill="#fff" text-anchor="middle">CPU &gt; 70%</text>
+      <text x="485" y="63"  font-size="9"  fill="#FAECE7" text-anchor="middle">Scale UP pods</text>
+
+      <rect x="410" y="100" width="150" height="60" rx="8" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="485" y="125" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">CPU &lt; 70%</text>
+      <text x="485" y="143" font-size="9"  fill="#9FE1CB" text-anchor="middle">Scale DOWN pods</text>
+
+      <rect x="610" y="50" width="270" height="80" rx="8" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+      <text x="745" y="80"  font-size="11" font-weight="700" fill="#042C53" text-anchor="middle">Deployment updated</text>
+      <text x="745" y="97"  font-size="9"  fill="#0C447C" text-anchor="middle">minReplicas: 2 → maxReplicas: 20</text>
+      <text x="745" y="113" font-size="9"  fill="#0C447C" text-anchor="middle">Scales within these bounds</text>
+
+      <line x1="160" y1="90" x2="210" y2="90" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+      <line x1="360" y1="75" x2="410" y2="55" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+      <line x1="360" y1="105" x2="410" y2="125" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+      <line x1="560" y1="50" x2="610" y2="80" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+      <line x1="560" y1="130" x2="610" y2="105" stroke="#555" stroke-width="1.5" marker-end="url(#a2)"/>
+    </svg>
+  </div>
+
+  <pre><code>apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: myapp-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-spring-boot-app
+  minReplicas: 2          # never go below 2 (HA guarantee)
+  maxReplicas: 20         # cap to control AWS costs
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70    # scale up when avg CPU > 70%
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80    # scale up when avg memory > 80%</code></pre>
+</div>
+
+<!-- ══ 5. SECURITY CONTEXT ═══════════════════════════════════════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div>
+      <div class="section-title">Security Context — Never Run as Root</div>
+      <div class="section-sub">Contain the blast radius of any pod compromise</div>
+    </div>
+    <span class="p1">P1 Critical</span>
+  </div>
+
+  <div class="two-col">
+    <div class="bad">
+      <div class="bad-label">❌ Running as Root — Danger</div>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 260 180" font-family="'Segoe UI',Arial,sans-serif">
+          <rect x="10" y="10" width="240" height="160" rx="8" fill="#fff5f5" stroke="#E24B4A" stroke-width="1.5"/>
+          <text x="130" y="30" font-size="11" font-weight="700" fill="#A32D2D" text-anchor="middle">Pod compromised as root</text>
+          <rect x="20" y="40" width="100" height="40" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="70" y="57" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod (root)</text>
+          <text x="70" y="71" font-size="9" fill="#FAECE7" text-anchor="middle">COMPROMISED</text>
+          <line x1="120" y1="60" x2="160" y2="60" stroke="#A32D2D" stroke-width="2"/>
+          <text x="140" y="55" font-size="9" fill="#A32D2D" text-anchor="middle">→</text>
+          <rect x="160" y="40" width="80" height="40" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="200" y="57" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Node</text>
+          <text x="200" y="71" font-size="9" fill="#FAECE7" text-anchor="middle">ROOT ACCESS</text>
+          <text x="130" y="110" font-size="10" fill="#A32D2D" text-anchor="middle">Attacker has full node</text>
+          <text x="130" y="128" font-size="10" fill="#A32D2D" text-anchor="middle">control — can access</text>
+          <text x="130" y="146" font-size="10" fill="#A32D2D" text-anchor="middle">all other pods &amp; secrets</text>
+        </svg>
+      </div>
+    </div>
+    <div class="good">
+      <div class="good-label">✅ Non-Root — Contained</div>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 260 180" font-family="'Segoe UI',Arial,sans-serif">
+          <rect x="10" y="10" width="240" height="160" rx="8" fill="#f0faf5" stroke="#1D9E75" stroke-width="1.5"/>
+          <text x="130" y="30" font-size="11" font-weight="700" fill="#0F6E56" text-anchor="middle">Pod compromised as non-root</text>
+          <rect x="20" y="40" width="100" height="40" rx="6" fill="#EF9F27" stroke="#BA7517" stroke-width="1"/>
+          <text x="70" y="57" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Pod (uid:1000)</text>
+          <text x="70" y="71" font-size="9" fill="#FAF0D8" text-anchor="middle">COMPROMISED</text>
+          <line x1="120" y1="60" x2="160" y2="60" stroke="#A32D2D" stroke-width="2" stroke-dasharray="4 3"/>
+          <rect x="160" y="40" width="80" height="40" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="200" y="57" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Node</text>
+          <text x="200" y="71" font-size="9" fill="#9FE1CB" text-anchor="middle">PROTECTED ✓</text>
+          <text x="130" y="110" font-size="10" fill="#0F6E56" text-anchor="middle">Attacker limited to</text>
+          <text x="130" y="128" font-size="10" fill="#0F6E56" text-anchor="middle">pod only — cannot</text>
+          <text x="130" y="146" font-size="10" fill="#0F6E56" text-anchor="middle">escalate privileges</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <pre><code>securityContext:
+  runAsNonRoot: true              # pod fails to start if image runs as root
+  runAsUser: 1000                 # run as specific non-root user
+  runAsGroup: 1000
+  readOnlyRootFilesystem: true    # filesystem is read-only — attacker can't write
+  allowPrivilegeEscalation: false # cannot gain more privileges than parent
+  capabilities:
+    drop:
+      - ALL                       # drop all Linux capabilities</code></pre>
+</div>
+
+<!-- ══ 6. SECRET MANAGEMENT ══════════════════════════════════════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div>
+      <div class="section-title">Secret Management — Never Hardcode</div>
+      <div class="section-sub">Use IRSA + Secrets Manager for zero credential leakage</div>
+    </div>
+    <span class="p1">P1 Critical</span>
+  </div>
+
+  <div class="two-col">
+    <div class="bad">
+      <div class="bad-label">❌ Wrong — Hardcoded</div>
+      <pre style="margin:0;font-size:11px"><code>env:
+  - name: DB_PASSWORD
+    value: "MyP@ssw0rd123"
+# Stored in Git forever
+# Anyone with repo access
+# can see this password</code></pre>
+    </div>
+    <div class="good">
+      <div class="good-label">✅ Correct — Secrets Manager</div>
+      <pre style="margin:0;font-size:11px"><code>env:
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: aurora-secret
+        key: password
+# Fetched from Secrets Manager
+# Rotates automatically
+# Never in Git</code></pre>
+    </div>
+  </div>
+
+  <h3>Credential Flow — IRSA + Secrets Manager</h3>
+  <div class="flow">
+    <div class="flow-step green">Pod starts<br>IRSA kicks in</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step amber">AWS validates<br>OIDC token</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step purple">Secrets Manager<br>returns creds</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">K8s Secret<br>created</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step green">Pod reads via<br>secretKeyRef</div>
+  </div>
+
+  <pre><code># Service Account with IRSA annotation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: myapp-sa
+  namespace: production
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/myapp-aurora-role
+
+# IAM Policy — only allow access to this specific secret
+{
+  "Effect": "Allow",
+  "Action": ["secretsmanager:GetSecretValue"],
+  "Resource": "arn:aws:secretsmanager:ap-south-1:123456789:secret:prod/aurora/*"
+}</code></pre>
+</div>
+
+<!-- ══ 7. NETWORK POLICY ════════════════════════════════════════════════ -->
+<div class="section" id="s7">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div>
+      <div class="section-title">Network Policy — Zero Trust</div>
+      <div class="section-sub">Default deny all traffic, then explicitly allow only what is needed</div>
+    </div>
+    <span class="p3">P3 Next Sprint</span>
+  </div>
+
+  <h3>Zero Trust Network Model</h3>
+  <div class="diagram">
+    <svg width="100%" viewBox="0 0 860 220" font-family="'Segoe UI',Arial,sans-serif">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#555" stroke-width="1.5"/>
+        </marker>
+      </defs>
+      <!-- Namespace box -->
+      <rect x="10" y="10" width="840" height="200" rx="12" fill="#f7f9ff" stroke="#185FA5" stroke-width="1" stroke-dasharray="6 3"/>
+      <text x="30" y="30" font-size="11" font-weight="700" fill="#185FA5">production namespace</text>
+
+      <!-- API Gateway -->
+      <rect x="30" y="50" width="130" height="60" rx="8" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="95" y="77" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">API Gateway</text>
+      <text x="95" y="93" font-size="9" fill="#9FE1CB" text-anchor="middle">role: api-gateway</text>
+
+      <!-- Microservice -->
+      <rect x="260" y="50" width="140" height="60" rx="8" fill="#7F77DD" stroke="#534AB7" stroke-width="1"/>
+      <text x="330" y="77" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Microservice</text>
+      <text x="330" y="93" font-size="9" fill="#CECBF6" text-anchor="middle">app: my-spring-boot</text>
+
+      <!-- Aurora endpoint -->
+      <rect x="500" y="50" width="140" height="60" rx="8" fill="#EF9F27" stroke="#BA7517" stroke-width="1"/>
+      <text x="570" y="77" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Aurora endpoint</text>
+      <text x="570" y="93" font-size="9" fill="#FAF0D8" text-anchor="middle">app: aurora-endpoint</text>
+
+      <!-- Random pod -->
+      <rect x="680" y="50" width="140" height="60" rx="8" fill="#D3D1C7" stroke="#5F5E5A" stroke-width="1"/>
+      <text x="750" y="77" font-size="11" font-weight="700" fill="#2C2C2A" text-anchor="middle">Other Pod</text>
+      <text x="750" y="93" font-size="9" fill="#444441" text-anchor="middle">app: other-service</text>
+
+      <!-- Allowed arrows -->
+      <line x1="160" y1="80" x2="260" y2="80" stroke="#1D9E75" stroke-width="2" marker-end="url(#a3)"/>
+      <text x="210" y="73" font-size="9" fill="#0F6E56" text-anchor="middle" font-weight="700">✓ :8080</text>
+      <line x1="400" y1="80" x2="500" y2="80" stroke="#1D9E75" stroke-width="2" marker-end="url(#a3)"/>
+      <text x="450" y="73" font-size="9" fill="#0F6E56" text-anchor="middle" font-weight="700">✓ :5432</text>
+
+      <!-- Blocked arrow -->
+      <line x1="680" y1="110" x2="400" y2="110" stroke="#E24B4A" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#a3)"/>
+      <text x="540" y="130" font-size="9" fill="#A32D2D" text-anchor="middle" font-weight="700">✗ BLOCKED by NetworkPolicy</text>
+
+      <!-- DNS -->
+      <rect x="260" y="140" width="140" height="44" rx="8" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+      <text x="330" y="159" font-size="10" font-weight="700" fill="#042C53" text-anchor="middle">DNS :53</text>
+      <text x="330" y="175" font-size="9" fill="#0C447C" text-anchor="middle">always allowed</text>
+      <line x1="330" y1="110" x2="330" y2="140" stroke="#185FA5" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#a3)"/>
+    </svg>
+  </div>
+
+  <pre><code># Step 1 — Default deny ALL ingress and egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  podSelector: {}    # applies to all pods in namespace
+  policyTypes: [Ingress, Egress]
+
+---
+# Step 2 — Allow only what the microservice needs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: myapp-allow
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: my-spring-boot-app
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: api-gateway    # only gateway can call me
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: aurora-endpoint # I can only call Aurora
+      ports:
+        - port: 5432
+    - ports:
+        - port: 53                 # always allow DNS</code></pre>
+</div>
+
+<!-- ══ 8. ANTI-AFFINITY ══════════════════════════════════════════════════ -->
+<div class="section" id="s8">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div>
+      <div class="section-title">Pod Anti-Affinity — Spread Across Nodes</div>
+      <div class="section-sub">Never put all eggs in one basket — spread pods across nodes and AZs</div>
+    </div>
+    <span class="p2">P2 Important</span>
+  </div>
+
+  <div class="two-col">
+    <div class="bad">
+      <div class="bad-label">❌ Without Anti-Affinity</div>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 260 180" font-family="'Segoe UI',Arial,sans-serif">
+          <rect x="10" y="10" width="240" height="160" rx="8" fill="#fff5f5" stroke="#E24B4A" stroke-width="1.5"/>
+          <rect x="20" y="30" width="220" height="120" rx="8" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="130" y="50" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Node 1 — CRASHED ✗</text>
+          <rect x="30" y="60" width="55" height="35" rx="4" fill="#fff" stroke="#A32D2D" stroke-width="1"/>
+          <text x="57" y="82" font-size="9" fill="#A32D2D" text-anchor="middle">Pod 1 ✗</text>
+          <rect x="100" y="60" width="55" height="35" rx="4" fill="#fff" stroke="#A32D2D" stroke-width="1"/>
+          <text x="127" y="82" font-size="9" fill="#A32D2D" text-anchor="middle">Pod 2 ✗</text>
+          <rect x="170" y="60" width="55" height="35" rx="4" fill="#fff" stroke="#A32D2D" stroke-width="1"/>
+          <text x="197" y="82" font-size="9" fill="#A32D2D" text-anchor="middle">Pod 3 ✗</text>
+          <text x="130" y="120" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">All 3 pods on same node</text>
+          <text x="130" y="138" font-size="10" fill="#FAECE7" text-anchor="middle">Node crash = full outage</text>
+        </svg>
+      </div>
+    </div>
+    <div class="good">
+      <div class="good-label">✅ With Anti-Affinity</div>
+      <div class="diagram">
+        <svg width="100%" viewBox="0 0 260 180" font-family="'Segoe UI',Arial,sans-serif">
+          <rect x="10" y="10" width="240" height="160" rx="8" fill="#f0faf5" stroke="#1D9E75" stroke-width="1.5"/>
+          <rect x="15" y="25" width="68" height="120" rx="6" fill="#E24B4A" stroke="#A32D2D" stroke-width="1"/>
+          <text x="49" y="45" font-size="9" font-weight="700" fill="#fff" text-anchor="middle">Node 1</text>
+          <text x="49" y="59" font-size="8" fill="#FAECE7" text-anchor="middle">CRASHED ✗</text>
+          <rect x="24" y="68" width="50" height="30" rx="4" fill="#fff" stroke="#A32D2D" stroke-width="1"/>
+          <text x="49" y="87" font-size="8" fill="#A32D2D" text-anchor="middle">Pod 1 ✗</text>
+          <rect x="96" y="25" width="68" height="120" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="130" y="45" font-size="9" font-weight="700" fill="#fff" text-anchor="middle">Node 2</text>
+          <text x="130" y="59" font-size="8" fill="#9FE1CB" text-anchor="middle">RUNNING ✓</text>
+          <rect x="105" y="68" width="50" height="30" rx="4" fill="#fff" stroke="#085041" stroke-width="1"/>
+          <text x="130" y="87" font-size="8" fill="#085041" text-anchor="middle">Pod 2 ✓</text>
+          <rect x="177" y="25" width="68" height="120" rx="6" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+          <text x="211" y="45" font-size="9" font-weight="700" fill="#fff" text-anchor="middle">Node 3</text>
+          <text x="211" y="59" font-size="8" fill="#9FE1CB" text-anchor="middle">RUNNING ✓</text>
+          <rect x="186" y="68" width="50" height="30" rx="4" fill="#fff" stroke="#085041" stroke-width="1"/>
+          <text x="211" y="87" font-size="8" fill="#085041" text-anchor="middle">Pod 3 ✓</text>
+          <text x="130" y="168" font-size="9" fill="#0F6E56" text-anchor="middle" font-weight="700">2 of 3 still serving traffic</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <pre><code>affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: In
+              values: [my-spring-boot-app]
+        topologyKey: kubernetes.io/hostname    # spread across nodes
+  # Also spread across Availability Zones
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app: my-spring-boot-app
+          topologyKey: topology.kubernetes.io/zone  # spread across AZs</code></pre>
+</div>
+
+<!-- ══ 9. GRACEFUL SHUTDOWN ════════════════════════════════════════════ -->
+<div class="section" id="s9">
+  <div class="section-header">
+    <div class="section-num">9</div>
+    <div>
+      <div class="section-title">Graceful Shutdown</div>
+      <div class="section-sub">Drain connections before pod dies — zero dropped requests on every deployment</div>
+    </div>
+    <span class="p2">P2 Important</span>
+  </div>
+
+  <h3>Shutdown Sequence</h3>
+  <div class="diagram">
+    <svg width="100%" viewBox="0 0 860 130" font-family="'Segoe UI',Arial,sans-serif">
+      <rect x="10"  y="30" width="120" height="70" rx="8" fill="#534AB7" stroke="#3C3489" stroke-width="1"/>
+      <text x="70"  y="58" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">K8s sends</text>
+      <text x="70"  y="73" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">SIGTERM</text>
+      <text x="70"  y="88" font-size="9" fill="#CECBF6" text-anchor="middle">t=0s</text>
+
+      <rect x="155" y="30" width="150" height="70" rx="8" fill="#EF9F27" stroke="#BA7517" stroke-width="1"/>
+      <text x="230" y="55" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">preStop: sleep 10s</text>
+      <text x="230" y="71" font-size="9" fill="#FAF0D8" text-anchor="middle">LB stops sending</text>
+      <text x="230" y="86" font-size="9" fill="#FAF0D8" text-anchor="middle">new requests</text>
+
+      <rect x="330" y="30" width="160" height="70" rx="8" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="410" y="55" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">Spring graceful</text>
+      <text x="410" y="71" font-size="9" fill="#9FE1CB" text-anchor="middle">shutdown starts</text>
+      <text x="410" y="86" font-size="9" fill="#9FE1CB" text-anchor="middle">completes in-flight reqs</text>
+
+      <rect x="515" y="30" width="160" height="70" rx="8" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="595" y="55" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">DB connections</text>
+      <text x="595" y="71" font-size="9" fill="#9FE1CB" text-anchor="middle">returned to pool</text>
+      <text x="595" y="86" font-size="9" fill="#9FE1CB" text-anchor="middle">HikariCP closes</text>
+
+      <rect x="700" y="30" width="150" height="70" rx="8" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+      <text x="775" y="55" font-size="10" font-weight="700" fill="#042C53" text-anchor="middle">Pod exits</text>
+      <text x="775" y="71" font-size="9" fill="#0C447C" text-anchor="middle">cleanly</text>
+      <text x="775" y="86" font-size="9" fill="#0C447C" text-anchor="middle">0 dropped requests</text>
+
+      <line x1="130" y1="65" x2="155" y2="65" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+      <line x1="305" y1="65" x2="330" y2="65" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+      <line x1="490" y1="65" x2="515" y2="65" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+      <line x1="675" y1="65" x2="700" y2="65" stroke="#555" stroke-width="1.5" marker-end="url(#a1)"/>
+    </svg>
+  </div>
+
+  <pre><code># Pod spec
+terminationGracePeriodSeconds: 60
+lifecycle:
+  preStop:
+    exec:
+      command: ["sh", "-c", "sleep 10"]   # wait for LB to deregister
+
+# application.yml
+server:
+  shutdown: graceful
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s       # max time to drain requests</code></pre>
+</div>
+
+<!-- ══ 10. IMAGE ════════════════════════════════════════════════════════ -->
+<div class="section" id="s10">
+  <div class="section-header">
+    <div class="section-num">10</div>
+    <div>
+      <div class="section-title">Image Best Practices</div>
+      <div class="section-sub">Secure, lean, reproducible container images</div>
+    </div>
+    <span class="p2">P2 Important</span>
+  </div>
+
+  <table>
+    <thead><tr><th>Rule</th><th>Wrong ❌</th><th>Correct ✅</th></tr></thead>
+    <tbody>
+      <tr><td>Version tag</td><td class="no">FROM eclipse-temurin:latest</td><td class="yes">FROM eclipse-temurin:17.0.9-jre-alpine</td></tr>
+      <tr><td>Base image size</td><td class="no">FROM ubuntu:22.04 (77MB)</td><td class="yes">FROM eclipse-temurin:17-jre-alpine (85MB JRE only)</td></tr>
+      <tr><td>User</td><td class="no">No USER directive (runs as root)</td><td class="yes">USER appuser (non-root uid 1000)</td></tr>
+      <tr><td>Registry</td><td class="no">docker.io/myapp:latest</td><td class="yes">123456.dkr.ecr.ap-south-1.amazonaws.com/myapp:1.0.5</td></tr>
+      <tr><td>Scanning</td><td class="no">No vulnerability scan</td><td class="yes">ECR scanning or Trivy in CI pipeline</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code>FROM eclipse-temurin:17.0.9-jre-alpine
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+WORKDIR /app
+COPY --chown=appuser:appgroup target/app.jar app.jar
+USER appuser
+
+ENTRYPOINT ["java", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+UseContainerSupport", \
+  "-jar", "app.jar"]</code></pre>
+</div>
+
+<!-- ══ 11. NAMESPACE ════════════════════════════════════════════════════ -->
+<div class="section" id="s11">
+  <div class="section-header">
+    <div class="section-num">11</div>
+    <div>
+      <div class="section-title">Namespace Isolation</div>
+      <div class="section-sub">Separate environments with quotas and RBAC</div>
+    </div>
+    <span class="p3">P3 Next Sprint</span>
+  </div>
+
+  <div class="diagram">
+    <svg width="100%" viewBox="0 0 860 160" font-family="'Segoe UI',Arial,sans-serif">
+      <rect x="10"  y="20" width="260" height="120" rx="10" fill="#FFE8E8" stroke="#E24B4A" stroke-width="1.5"/>
+      <text x="140" y="44" font-size="12" font-weight="700" fill="#A32D2D" text-anchor="middle">production</text>
+      <text x="140" y="62" font-size="10" fill="#712B13" text-anchor="middle">CPU: 10 cores max</text>
+      <text x="140" y="78" font-size="10" fill="#712B13" text-anchor="middle">Memory: 20GB max</text>
+      <text x="140" y="94" font-size="10" fill="#712B13" text-anchor="middle">PDB required ✓</text>
+      <text x="140" y="110" font-size="10" fill="#712B13" text-anchor="middle">Full audit logging ✓</text>
+      <text x="140" y="126" font-size="10" fill="#712B13" text-anchor="middle">Strict RBAC ✓</text>
+
+      <rect x="300" y="20" width="260" height="120" rx="10" fill="#FFF8EC" stroke="#EF9F27" stroke-width="1.5"/>
+      <text x="430" y="44" font-size="12" font-weight="700" fill="#854F0B" text-anchor="middle">staging</text>
+      <text x="430" y="62" font-size="10" fill="#633806" text-anchor="middle">CPU: 5 cores max</text>
+      <text x="430" y="78" font-size="10" fill="#633806" text-anchor="middle">Memory: 10GB max</text>
+      <text x="430" y="94" font-size="10" fill="#633806" text-anchor="middle">PDB optional</text>
+      <text x="430" y="110" font-size="10" fill="#633806" text-anchor="middle">Mirrors prod config</text>
+      <text x="430" y="126" font-size="10" fill="#633806" text-anchor="middle">Moderate RBAC</text>
+
+      <rect x="590" y="20" width="260" height="120" rx="10" fill="#EAF3DE" stroke="#639922" stroke-width="1.5"/>
+      <text x="720" y="44" font-size="12" font-weight="700" fill="#3B6D11" text-anchor="middle">development</text>
+      <text x="720" y="62" font-size="10" fill="#27500A" text-anchor="middle">CPU: 2 cores max</text>
+      <text x="720" y="78" font-size="10" fill="#27500A" text-anchor="middle">Memory: 4GB max</text>
+      <text x="720" y="94" font-size="10" fill="#27500A" text-anchor="middle">PDB not needed</text>
+      <text x="720" y="110" font-size="10" fill="#27500A" text-anchor="middle">Loose quotas</text>
+      <text x="720" y="126" font-size="10" fill="#27500A" text-anchor="middle">Dev team access</text>
+    </svg>
+  </div>
+
+  <pre><code>apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: production-quota
+  namespace: production
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    pods: "50"
+    count/deployments.apps: "20"</code></pre>
+</div>
+
+<!-- ══ 12. OBSERVABILITY ═══════════════════════════════════════════════ -->
+<div class="section" id="s12">
+  <div class="section-header">
+    <div class="section-num">12</div>
+    <div>
+      <div class="section-title">Observability</div>
+      <div class="section-sub">Prometheus + Grafana + CloudWatch — full visibility into pod health</div>
+    </div>
+    <span class="p3">P3 Next Sprint</span>
+  </div>
+
+  <h3>Observability Stack</h3>
+  <div class="flow">
+    <div class="flow-step green">Spring Boot<br>/actuator/prometheus</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step purple">Prometheus<br>scrapes every 15s</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Grafana<br>dashboards</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step amber">Alert Manager<br>threshold breach</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step red">PagerDuty<br>/ Slack</div>
+  </div>
+
+  <h3>Critical Alerts to Configure</h3>
+  <table>
+    <thead><tr><th>Metric</th><th>Alert Threshold</th><th>Meaning</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td>JVM heap usage</td><td class="no">&gt; 85%</td><td>Memory leak risk</td><td>Scale up / investigate</td></tr>
+      <tr><td>HikariCP pool wait</td><td class="no">&gt; 1 second</td><td>DB connection bottleneck</td><td>Increase pool size or DB capacity</td></tr>
+      <tr><td>HTTP 5xx error rate</td><td class="no">&gt; 1%</td><td>Application errors</td><td>Check logs immediately</td></tr>
+      <tr><td>Pod restart count</td><td class="no">&gt; 3 in 5 mins</td><td>CrashLoopBackOff risk</td><td>Check liveness probe and logs</td></tr>
+      <tr><td>CPU throttling</td><td class="no">&gt; 50%</td><td>Limits too low</td><td>Increase CPU limits</td></tr>
+      <tr><td>Pending pods</td><td class="no">&gt; 0 for 5 mins</td><td>Node capacity issue</td><td>Scale node group</td></tr>
+    </tbody>
+  </table>
+
+  <pre><code># application.yml — expose all metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Pod annotations — tells Prometheus to scrape this pod
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/actuator/prometheus"</code></pre>
+</div>
+
+<!-- ══ 13. DEPLOYMENT STRATEGY ═════════════════════════════════════════ -->
+<div class="section" id="s13">
+  <div class="section-header">
+    <div class="section-num">13</div>
+    <div>
+      <div class="section-title">Deployment Strategy</div>
+      <div class="section-sub">Zero downtime rolling updates with maxUnavailable: 0</div>
+    </div>
+    <span class="p2">P2 Important</span>
+  </div>
+
+  <div class="diagram">
+    <svg width="100%" viewBox="0 0 860 200" font-family="'Segoe UI',Arial,sans-serif">
+      <text x="430" y="20" font-size="12" font-weight="700" fill="#1F3A6B" text-anchor="middle">Rolling update timeline — maxSurge:1, maxUnavailable:0</text>
+
+      <!-- State 1 -->
+      <rect x="10" y="30" width="160" height="160" rx="8" fill="#f7f9ff" stroke="#dce6f7" stroke-width="1"/>
+      <text x="90" y="50" font-size="10" font-weight="700" fill="#1F3A6B" text-anchor="middle">Initial state</text>
+      <rect x="25" y="60" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="90" y="80" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="25" y="98" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="90" y="118" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="25" y="136" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="90" y="156" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+
+      <!-- Arrow -->
+      <line x1="170" y1="110" x2="190" y2="110" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+
+      <!-- State 2 -->
+      <rect x="190" y="30" width="160" height="160" rx="8" fill="#f7f9ff" stroke="#dce6f7" stroke-width="1"/>
+      <text x="270" y="50" font-size="10" font-weight="700" fill="#1F3A6B" text-anchor="middle">New pod added</text>
+      <rect x="205" y="60" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="270" y="80" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="205" y="98" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="270" y="118" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="205" y="136" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="270" y="156" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="205" y="170" width="130" height="16" rx="4" fill="#FAC775" stroke="#BA7517" stroke-width="1"/>
+      <text x="270" y="181" font-size="8" fill="#412402" text-anchor="middle">v2 Pod (starting)</text>
+
+      <!-- Arrow -->
+      <line x1="350" y1="110" x2="370" y2="110" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+
+      <!-- State 3 -->
+      <rect x="370" y="30" width="160" height="160" rx="8" fill="#f7f9ff" stroke="#dce6f7" stroke-width="1"/>
+      <text x="450" y="50" font-size="10" font-weight="700" fill="#1F3A6B" text-anchor="middle">v2 ready → v1 removed</text>
+      <rect x="385" y="60" width="130" height="30" rx="4" fill="#E24B4A" stroke="#A32D2D" stroke-width="1" stroke-dasharray="4 2"/>
+      <text x="450" y="80" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (terminating)</text>
+      <rect x="385" y="98" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="450" y="118" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="385" y="136" width="130" height="30" rx="4" fill="#1D9E75" stroke="#085041" stroke-width="1"/>
+      <text x="450" y="156" font-size="9" fill="#fff" text-anchor="middle">v1 Pod (running)</text>
+      <rect x="385" y="170" width="130" height="16" rx="4" fill="#7F77DD" stroke="#534AB7" stroke-width="1"/>
+      <text x="450" y="181" font-size="8" fill="#fff" text-anchor="middle">v2 Pod (ready ✓)</text>
+
+      <!-- Arrow -->
+      <line x1="530" y1="110" x2="550" y2="110" stroke="#555" stroke-width="2" marker-end="url(#a1)"/>
+
+      <!-- State 4 -->
+      <rect x="550" y="30" width="160" height="160" rx="8" fill="#f0faf5" stroke="#1D9E75" stroke-width="1.5"/>
+      <text x="630" y="50" font-size="10" font-weight="700" fill="#0F6E56" text-anchor="middle">Complete ✓</text>
+      <rect x="565" y="60" width="130" height="30" rx="4" fill="#7F77DD" stroke="#534AB7" stroke-width="1"/>
+      <text x="630" y="80" font-size="9" fill="#fff" text-anchor="middle">v2 Pod (running)</text>
+      <rect x="565" y="98" width="130" height="30" rx="4" fill="#7F77DD" stroke="#534AB7" stroke-width="1"/>
+      <text x="630" y="118" font-size="9" fill="#fff" text-anchor="middle">v2 Pod (running)</text>
+      <rect x="565" y="136" width="130" height="30" rx="4" fill="#7F77DD" stroke="#534AB7" stroke-width="1"/>
+      <text x="630" y="156" font-size="9" fill="#fff" text-anchor="middle">v2 Pod (running)</text>
+      <text x="630" y="186" font-size="9" fill="#0F6E56" text-anchor="middle" font-weight="700">Zero downtime ✓</text>
+
+      <!-- Timeline labels -->
+      <text x="90"  y="200" font-size="9" fill="#555" text-anchor="middle">t=0</text>
+      <text x="270" y="200" font-size="9" fill="#555" text-anchor="middle">t=30s</text>
+      <text x="450" y="200" font-size="9" fill="#555" text-anchor="middle">t=60s</text>
+      <text x="630" y="200" font-size="9" fill="#555" text-anchor="middle">t=90s</text>
+    </svg>
+  </div>
+
+  <pre><code>strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1        # create 1 extra pod before removing old ones
+    maxUnavailable: 0  # never take a pod down before replacement is ready
+                       # this combination = zero downtime guaranteed</code></pre>
+</div>
+
+<!-- ══ 14. FULL TEMPLATE ═══════════════════════════════════════════════ -->
+<div class="section" id="s14">
+  <div class="section-header">
+    <div class="section-num">14</div>
+    <div>
+      <div class="section-title">Complete Production-Ready Pod Template</div>
+      <div class="section-sub">Copy-paste ready — all best practices combined into one manifest</div>
+    </div>
+  </div>
+
+  <pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-spring-boot-app
+  namespace: production
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: my-spring-boot-app
+  template:
+    metadata:
+      labels:
+        app: my-spring-boot-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: myapp-sa           # IRSA role attached here
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values: [my-spring-boot-app]
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: my-spring-boot-app
+          image: 123456789.dkr.ecr.ap-south-1.amazonaws.com/myapp:1.0.5
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: aurora-secret
+                  key: host
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aurora-secret
+                  key: password
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]</code></pre>
+</div>
+
+<!-- ══ 15. CHECKLIST ═══════════════════════════════════════════════════ -->
+<div class="section" id="s15">
+  <div class="section-header">
+    <div class="section-num">15</div>
+    <div>
+      <div class="section-title">Checklist & Priority Order</div>
+      <div class="section-sub">What to implement and when</div>
+    </div>
+  </div>
+
+  <h3>Priority Order</h3>
+  <table>
+    <thead><tr><th>Priority</th><th>Practice</th><th>Risk if Skipped</th></tr></thead>
+    <tbody>
+      <tr><td><span class="p1">P1 — Do Today</span></td><td>Resource requests & limits</td><td>Node crash, OOMKill cascade</td></tr>
+      <tr><td><span class="p1">P1 — Do Today</span></td><td>Readiness + Liveness probes</td><td>Traffic to unready pods, 503 errors</td></tr>
+      <tr><td><span class="p1">P1 — Do Today</span></td><td>No hardcoded secrets</td><td>Credential leak, security breach</td></tr>
+      <tr><td><span class="p1">P1 — Do Today</span></td><td>runAsNonRoot security context</td><td>Full node compromise if pod breached</td></tr>
+      <tr><td><span class="p2">P2 — This Sprint</span></td><td>PodDisruptionBudget</td><td>Downtime during node drain / deploy</td></tr>
+      <tr><td><span class="p2">P2 — This Sprint</span></td><td>HPA with min 2 replicas</td><td>Cannot handle traffic spikes</td></tr>
+      <tr><td><span class="p2">P2 — This Sprint</span></td><td>Pod anti-affinity</td><td>Single node failure = full outage</td></tr>
+      <tr><td><span class="p2">P2 — This Sprint</span></td><td>Graceful shutdown</td><td>Dropped requests on every deploy</td></tr>
+      <tr><td><span class="p2">P2 — This Sprint</span></td><td>Rolling update maxUnavailable:0</td><td>Downtime during deployments</td></tr>
+      <tr><td><span class="p3">P3 — Next Sprint</span></td><td>NetworkPolicy zero trust</td><td>Lateral movement risk</td></tr>
+      <tr><td><span class="p3">P3 — Next Sprint</span></td><td>Full Prometheus observability</td><td>Blind to production issues</td></tr>
+      <tr><td><span class="p3">P3 — Next Sprint</span></td><td>Namespace resource quotas</td><td>Runaway resource consumption</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:24px">Complete Checklist</h3>
+  <ul class="checklist">
+    <li>CPU requests set</li>
+    <li>Memory requests set</li>
+    <li>CPU limits set</li>
+    <li>Memory limits set</li>
+    <li>Liveness probe configured</li>
+    <li>Readiness probe configured</li>
+    <li>Startup probe configured</li>
+    <li>PodDisruptionBudget created</li>
+    <li>HPA minReplicas ≥ 2</li>
+    <li>HPA maxReplicas set</li>
+    <li>Pod anti-affinity configured</li>
+    <li>runAsNonRoot: true</li>
+    <li>readOnlyRootFilesystem: true</li>
+    <li>allowPrivilegeEscalation: false</li>
+    <li>All capabilities dropped</li>
+    <li>No hardcoded secrets in YAML</li>
+    <li>IRSA role attached</li>
+    <li>Secrets from Secrets Manager</li>
+    <li>NetworkPolicy default deny</li>
+    <li>terminationGracePeriodSeconds: 60</li>
+    <li>preStop sleep hook</li>
+    <li>Spring graceful shutdown</li>
+    <li>Namespace per environment</li>
+    <li>Resource quotas set</li>
+    <li>Prometheus metrics exposed</li>
+    <li>Grafana dashboard created</li>
+    <li>Alerts configured</li>
+    <li>Image in ECR</li>
+    <li>Exact version tag pinned</li>
+    <li>Image vulnerability scan</li>
+  </ul>
+</div>
+
+</div><!-- end .page -->
+
+<footer>
+  EKS Pod Best Practices · Solution Architecture Team · Version 1.0 · March 2026<br>
+  AWS EKS · Spring Boot · Kubernetes · Production Grade
+</footer>
+
+</body>
+</html>
