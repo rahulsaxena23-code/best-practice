@@ -293,18 +293,18 @@ public class OrderEventProducer {
 sequenceDiagram
     participant C1 as Consumer 1
     participant C2 as Consumer 2
-    participant C3 as Consumer 3 NEW
-    participant CG as Group Coordinator
+    participant C3 as Consumer 3
+    participant CG as Coordinator
 
-    Note over C1,C2: C1 reads P0 and P1. C2 reads P2 and P3.
-    C3->>CG: Join group
-    CG->>C1: Stop consuming — rebalance triggered
-    CG->>C2: Stop consuming — rebalance triggered
-    Note over C1,C2,C3: All consumers paused during rebalance
-    CG->>C1: Assigned Partition 0
-    CG->>C2: Assigned Partitions 1 and 2
-    CG->>C3: Assigned Partition 3
-    Note over C1,C2,C3: Consuming resumes with new assignment
+    Note over C1,C2: Initial state - C1 owns P0, C2 owns P1
+    C3->>CG: Join group request
+    CG->>C1: Rebalance triggered
+    CG->>C2: Rebalance triggered
+    Note over C1,CG: All consumers stopped
+    CG->>C1: Reassigned P0
+    CG->>C2: Reassigned P1 and P2
+    CG->>C3: Reassigned P3
+    Note over C1,CG: All consumers resumed
 ```
 
 > **Warning:** Rebalancing pauses ALL consumers in the group.  
