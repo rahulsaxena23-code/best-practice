@@ -295,8 +295,7 @@ sequenceDiagram
     participant C2 as Consumer 2
     participant C3 as Consumer 3
     participant CG as Coordinator
-
-    Note over C1,C2: Initial state - C1 owns P0, C2 owns P1
+    Note over C1,C2: C1 owns P0. C2 owns P1.
     C3->>CG: Join group request
     CG->>C1: Rebalance triggered
     CG->>C2: Rebalance triggered
